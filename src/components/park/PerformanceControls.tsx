@@ -24,6 +24,17 @@ import type { SoundEffect } from '../../data/sounds';
 import type { Stage } from '../../data/model';
 import type { useStageMicrophone } from '../../hooks/useStageMicrophone';
 import type { useLiveAudio } from '../../hooks/useLiveAudio';
+export const reactions: {
+  s: string;
+  icon: 'heart' | 'clap' | 'lightstick';
+  size: number;
+  label: string;
+  sound: SoundEffect;
+}[] = [
+  { s: '♡', icon: 'heart', size: 24, label: '하트', sound: 'heart' },
+  { s: '👏', icon: 'clap', size: 23, label: '박수', sound: 'clap' },
+  { s: '✦', icon: 'lightstick', size: 23, label: '응원봉', sound: 'lightstick' },
+];
 type Props = {
   queue: number | null;
   performing: number | null;
@@ -250,33 +261,14 @@ export function PerformanceControls({
       {performing === null && (
         <div className="reaction-bar">
           <span>마음을 보내요</span>
-          {[
-            {
-              s: '♡',
-              icon: <Flaticon name="heart" size={24} />,
-              label: '하트',
-              sound: 'heart',
-            },
-            {
-              s: '👏',
-              icon: <Flaticon name="clap" size={23} />,
-              label: '박수',
-              sound: 'clap',
-            },
-            {
-              s: '✦',
-              icon: <Flaticon name="lightstick" size={23} />,
-              label: '응원봉',
-              sound: 'lightstick',
-            },
-          ].map((r) => (
+          {reactions.map((r) => (
             <Button
               className="flex flex-col items-center justify-center"
               key={r.s}
               aria-label={r.label + ' 보내기'}
-              onClick={() => onReaction(r.s, r.sound as SoundEffect)}
+              onClick={() => onReaction(r.s, r.sound)}
             >
-              {r.icon}
+              <Flaticon name={r.icon} size={r.size} />
               <small>{r.label}</small>
             </Button>
           ))}
