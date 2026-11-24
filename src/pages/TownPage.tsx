@@ -10,6 +10,9 @@ import { SettingsMenu } from '../components/settings/SettingsMenu';
 import { AdminLab, type LabTime, type LabSeason } from '../components/settings/AdminLab';
 import { treeSeason } from '../scene/park/treeSeason';
 import { MovementJoystick } from '../components/park/MovementJoystick';
+import { PortraitControls } from '../components/park/PortraitControls';
+import { useMobilePortrait } from '../hooks/useMobilePortrait';
+import type { SoundEffect } from '../data/sounds';
 import { StageLabels } from '../components/park/StageLabels';
 import { StageDirectory } from '../components/park/StageDirectory';
 import { ParkIntroduction } from '../components/park/ParkIntroduction';
@@ -80,6 +83,8 @@ export function TownPage({ account, initial }: { account: Account; initial: Save
   const [roomOpen, setRoomOpen] = useState(false);
   const storagePrefix = `mt-${account.id}`;
   const [showStages, setShowStages] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  const portrait = useMobilePortrait();
   const [avatar, setAvatar] = useState<Avatar>(
     () => initial?.avatar ?? readSaved(storagePrefix + '-avatar', defaultAvatar),
   );
@@ -353,10 +358,31 @@ export function TownPage({ account, initial }: { account: Account; initial: Save
   const title = (_eyebrow: string, name: string) => (
     <PanelHeading title={name} onClose={entered ? () => setPanel(null) : undefined} />
   );
+  const toggleStages = () => {
+    setShowStages(!showStages);
+    document.body.classList.toggle('show-stages', !showStages);
+  };
+  const sendReaction = (symbol: string, sound: SoundEffect) => {
+    setReaction({ symbol: symbol, at: Date.now() });
+    playSound(sound);
+    if (
+      symbol === '♡' &&
+      !account.demo &&
+      audiblePerformance &&
+      audiblePerformance.user_id !== account.id
+    ) {
+      void fanAction(audiblePerformance.user_id, 'heart', true).catch((error) =>
+        notify(error.message),
+      );
+    }
+  };
   const hour = previewTime === 'day' ? 12 : previewTime === 'night' ? 21 : koreanHour();
   return (
     <>
-      <main id="app" className={entered ? '' : 'before-entry'}>
+      <main
+        id="app"
+        className={`${entered ? '' : 'before-entry'}${portrait ? ' portrait-layout' : ''}`}
+      >
         {enteringChannel !== null && (
           <ChannelEntryDialog
             channel={enteringChannel}
@@ -452,7 +478,7 @@ export function TownPage({ account, initial }: { account: Account; initial: Save
               name={avatar.name}
               openStage={openStage}
             />
-            <MovementJoystick motion={motion} />
+            {!portrait && <MovementJoystick motion={motion} />}
             <PerformanceControls
               queue={queue}
               performing={performing}
@@ -473,27 +499,37 @@ export function TownPage({ account, initial }: { account: Account; initial: Save
                   setActionError((error as Error).message);
                 }
               }}
-              onReaction={(symbol, sound) => {
-                setReaction({ symbol: symbol, at: Date.now() });
-                playSound(sound);
-                if (
-                  symbol === '♡' &&
-                  !account.demo &&
-                  audiblePerformance &&
-                  audiblePerformance.user_id !== account.id
-                ) {
-                  void fanAction(audiblePerformance.user_id, 'heart', true).catch((error) =>
-                    notify(error.message),
-                  );
-                }
-              }}
+              onReaction={sendReaction}
             />
-            <ParkMinimap
-              position={position}
-              mapPositions={mapPositions}
-              stages={stages}
-              participants={town.state.participants.filter((p) => p.id !== account.id)}
-            />
+            {(!portrait || mapOpen) && (
+              <ParkMinimap
+                position={position}
+                mapPositions={mapPositions}
+                stages={stages}
+                participants={town.state.participants.filter((p) => p.id !== account.id)}
+              />
+            )}
+            {portrait && (
+              <Button
+                className="portrait-map-toggle"
+                aria-expanded={mapOpen}
+                onClick={() => setMapOpen(!mapOpen)}
+              >
+                <Flaticon name="map" size={24} />
+                <span>공원 지도</span>
+              </Button>
+            )}
+            {portrait && !roomOpen && (
+              <PortraitControls
+                motion={motion}
+                near={near}
+                performing={performing}
+                onStage={openStage}
+                onStages={toggleStages}
+                onReaction={sendReaction}
+                onNothing={() => notify('가까이에 이용할 수 있는 게 없어요.')}
+              />
+            )}
             {audiblePerformance && performing === null && (
               <div className="live-audio-status" role="status">
                 <span>
@@ -520,13 +556,7 @@ export function TownPage({ account, initial }: { account: Account; initial: Save
                 )}
               </div>
             )}
-            <Button
-              className="stage-toggle"
-              onClick={() => {
-                setShowStages(!showStages);
-                document.body.classList.toggle('show-stages', !showStages);
-              }}
-            >
+            <Button className="stage-toggle" onClick={toggleStages}>
               <Flaticon name="musical" size={20} />
               <span>공연 중인 무대</span>
               <span className="pill">{stages.filter((s) => s.artist).length}</span>
