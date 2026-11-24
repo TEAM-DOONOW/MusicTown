@@ -497,7 +497,7 @@ export function TownPage({ account, initial }: { account: Account; initial: Save
                 <span>공원 지도</span>
               </Button>
             )}
-            {portrait && !roomOpen && (
+            {portrait && (
               <PortraitControls
                 motion={motion}
                 near={near}
