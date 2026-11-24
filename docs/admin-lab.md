@@ -12,6 +12,7 @@ Vercel Settings → Environment Variables에 서버 전용 변수를 설정합�
 
 ```dotenv
 ADMIN_EMAILS=admin@example.com,owner@example.com
+ADMIN_USER_IDS=00000000-0000-0000-0000-000000000000
 ```
 
 - 실제 로그인 계정의 확인된 이메일을 쉼표로 구분합니다. 대소문자와 양쪽 공백은 무시합니다.
@@ -20,15 +21,17 @@ ADMIN_EMAILS=admin@example.com,owner@example.com
 - 로컬은 Git에서 제외된 .env.local에 설정한 뒤 npm run dev를 재시작합니다.
 - 기존 Supabase URL과 publishable key를 사용하며 Secret Key는 필요하지 않습니다.
 - 목록이 비어 있거나 이메일이 없거나 미확인 상태이면 관리자가 아닙니다.
-- 현재 카카오 로그인은 이메일을 요청하지 않으므로 확인된 이메일이 있는 계정을 사용하세요.
+- 이메일이 없는 계정(이메일 제공에 동의하지 않은 카카오 계정 등)은 Supabase 유저 ID를 `ADMIN_USER_IDS`에 쉼표로 넣습니다.
+  ID는 검증된 토큰의 사용자 ID와만 비교하며, `/admin` 거부 화면에 본인 ID가 표시됩니다.
 
 ## 권한 확인
 
 GET /api/admin-role에 로그인 세션의 Authorization: Bearer 토큰을 보냅니다.
 서버가 Supabase auth.getUser(token)으로 사용자를 검증하고 반환된 계정 이메일을
-ADMIN_EMAILS와 비교합니다. 요청 본문·쿼리·메타데이터의 이메일이나 역할은 사용하지 않습니다.
-응답은 { "isAdmin": true | false, "isMaster": true | false }이며 이메일 목록은 반환하지 않습니다.
-ADMIN_EMAILS의 계정은 마스터 관리자입니다. SUPABASE_SECRET_KEY가 있으면 서버가 마스터를 DB에 동기화하고,
+ADMIN_EMAILS와, 사용자 ID를 ADMIN_USER_IDS와 비교합니다. 요청 본문·쿼리·메타데이터의 이메일이나 역할은 사용하지 않습니다.
+응답은 { "isAdmin", "isMaster", "check" }이며 관리자 목록은 반환하지 않습니다. check는 호출한 본인 계정의 진단 정보
+(email, emailVerified, listed, listConfigured, sync)로, 운영실 거부 화면이 거부 사유를 보여 주는 데 씁니다.
+ADMIN_EMAILS·ADMIN_USER_IDS의 계정은 마스터 관리자입니다. SUPABASE_SECRET_KEY가 있으면 서버가 마스터를 DB에 동기화하고,
 마스터가 운영실 회원 관리에서 지정한 일반 관리자도 isAdmin: true가 됩니다(자세한 내용은 admin-setup.md).
 Cache-Control: no-store를 적용합니다.
 
