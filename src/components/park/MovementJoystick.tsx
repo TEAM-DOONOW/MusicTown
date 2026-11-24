@@ -7,26 +7,22 @@ export function MovementJoystick({
   className = 'movement',
   label = '이동 조이스틱',
   stickId = 'stick',
-  radius = 35,
-  travel = 22,
 }: {
   motion: MutableRefObject<Position>;
   id?: string;
   className?: string;
   label?: string;
   stickId?: string;
-  radius?: number;
-  travel?: number;
 }) {
   const move = (element: HTMLElement, clientX: number, clientY: number) => {
     const rect = element.getBoundingClientRect();
     motion.current = joystickVector(
       clientX - rect.left - rect.width / 2,
       clientY - rect.top - rect.height / 2,
-      radius,
+      35,
     );
     const stick = element.querySelector<HTMLElement>(`#${stickId}`)!;
-    stick.style.transform = `translate(${motion.current.x * travel}px,${motion.current.y * travel}px)`;
+    stick.style.transform = `translate(${motion.current.x * 22}px,${motion.current.y * 22}px)`;
   };
   return (
     <div className={className}>
