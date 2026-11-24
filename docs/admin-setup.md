@@ -12,7 +12,8 @@
    다시 실행해도 된다.
 2. Supabase → Authentication → URL Configuration → Redirect URLs에 운영 주소의 `/admin/`을 추가한다.
    예: `https://music-town-hb2j.vercel.app/admin/`. 빠지면 로그인 후 메인 화면으로 돌아간다.
-3. 마스터 관리자: Vercel 서버 환경 변수 `ADMIN_EMAILS`(관리자 실험실과 같은 변수)에 이메일을 넣고,
+3. 마스터 관리자: Vercel 서버 환경 변수 `ADMIN_EMAILS`(관리자 실험실과 같은 변수)에 이메일을 넣고
+   (이메일이 없는 카카오 계정은 `ADMIN_USER_IDS`에 유저 ID를 넣는다. ID는 `/admin` 거부 화면에 표시된다),
    `SUPABASE_SECRET_KEY`가 설정돼 있는지 확인한 뒤 재배포한다. `/admin`에 로그인하면 `/api/admin-role`이
    확인된 이메일을 비교해 DB에 마스터 권한을 2시간짜리로 등록하고, 운영실이 열려 있는 동안 30분마다 갱신한다.
    목록에서 이메일을 빼면 다음 확인 때 바로, 늦어도 2시간 뒤에는 권한이 사라진다.

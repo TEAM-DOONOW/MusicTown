@@ -142,13 +142,53 @@ export async function rpc<T>(name: string, args?: Record<string, unknown>): Prom
 
 // Lets the server mirror a master admin (ADMIN_EMAILS) into the database before console calls.
 // Failures are ignored: the database role check stays the source of truth.
-export async function syncAdminRole() {
-  if (demoMode || !supabase) return;
+export type AdminCheck = {
+  email: string | null;
+  emailVerified: boolean;
+  listed: boolean;
+  listConfigured: boolean;
+  sync: 'ok' | 'no_secret' | 'failed';
+};
+
+// Returns the server's diagnosis of the caller's own account, or null when it could not be read.
+export async function syncAdminRole(): Promise<AdminCheck | null> {
+  if (demoMode || !supabase) return null;
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
-  if (!token) return;
-  await fetch('/api/admin-role', {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: 'no-store',
-  }).catch(() => undefined);
+  if (!token) return null;
+  try {
+    const res = await fetch('/api/admin-role', {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    });
+    const body = await res.json().catch(() => null);
+    return res.ok && body?.check ? (body.check as AdminCheck) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Plain-language reasons a master login was refused, most fundamental first.
+export function explainCheck(check: AdminCheck | null): string[] {
+  if (!check) return ['서버(/api/admin-role)에서 권한 확인 결과를 받지 못했어요.'];
+  const reasons: string[] = [];
+  if (!check.listConfigured)
+    reasons.push(
+      '서버에 ADMIN_EMAILS·ADMIN_USER_IDS가 비어 있어요. Vercel 환경 변수를 넣고 재배포해 주세요.',
+    );
+  if (!check.listed) {
+    if (!check.email)
+      reasons.push('로그인한 계정에 이메일이 없어요. 아래 ID를 ADMIN_USER_IDS에 넣어 주세요.');
+    else if (!check.emailVerified)
+      reasons.push(
+        `${check.email}은 인증되지 않은 이메일이에요. 아래 ID를 ADMIN_USER_IDS에 넣어 주세요.`,
+      );
+    else if (check.listConfigured)
+      reasons.push(`로그인 이메일 ${check.email}이 ADMIN_EMAILS에 없어요.`);
+  }
+  if (check.sync === 'no_secret')
+    reasons.push('서버에 SUPABASE_SECRET_KEY가 없어 DB에 관리자로 등록하지 못했어요.');
+  if (check.sync === 'failed')
+    reasons.push('DB 관리자 등록(admin_sync_role)이 실패했어요. 시크릿 키가 맞는지 확인해 주세요.');
+  return reasons;
 }

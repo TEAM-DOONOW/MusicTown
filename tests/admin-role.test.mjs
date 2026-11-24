@@ -60,13 +60,17 @@ async function invoke({
     { method: 'GET', headers: { authorization: 'Bearer verified-token' }, ...request },
     res,
   );
-  return { ...res, tokens, syncs };
+  const roles =
+    res.body && 'isAdmin' in res.body
+      ? { isAdmin: res.body.isAdmin, isMaster: res.body.isMaster }
+      : res.body;
+  return { ...res, roles, tokens, syncs };
 }
 
 test('verified allowlisted email grants access without exposing the list', async () => {
   const result = await invoke();
   assert.equal(result.code, 200);
-  assert.deepEqual(result.body, { isAdmin: true, isMaster: true });
+  assert.deepEqual(result.roles, { isAdmin: true, isMaster: true });
   assert.equal(result.headers['Cache-Control'], 'no-store');
   assert.deepEqual(result.tokens, ['verified-token']);
 });
@@ -82,16 +86,16 @@ test('email matching is exact and ignores forged request or metadata roles', asy
       },
       request: { query: { email: verified.email }, body: { email: verified.email, isAdmin: true } },
     });
-    assert.deepEqual(result.body, { isAdmin: false, isMaster: false });
+    assert.deepEqual(result.roles, { isAdmin: false, isMaster: false });
   }
 });
 
 test('empty configuration and unverified emails never grant access', async () => {
-  assert.deepEqual((await invoke({ config: { ...env, ADMIN_EMAILS: '' } })).body, {
+  assert.deepEqual((await invoke({ config: { ...env, ADMIN_EMAILS: '' } })).roles, {
     isAdmin: false,
     isMaster: false,
   });
-  assert.deepEqual((await invoke({ user: { ...verified, email_confirmed_at: null } })).body, {
+  assert.deepEqual((await invoke({ user: { ...verified, email_confirmed_at: null } })).roles, {
     isAdmin: false,
     isMaster: false,
   });
@@ -118,29 +122,65 @@ test('invalid tokens and requests fail closed', async () => {
 test('masters are mirrored to the database and granted admins are recognised', async () => {
   const config = { ...env, SUPABASE_SECRET_KEY: 'secret-key' };
   const master = await invoke({ config });
-  assert.deepEqual(master.body, { isAdmin: true, isMaster: true });
+  assert.deepEqual(master.roles, { isAdmin: true, isMaster: true });
   assert.deepEqual(master.syncs, [
     ['admin_sync_role', { target_user: 'account', is_master: true }],
   ]);
 
   const kakao = { id: 'kakao-account', email: '', email_confirmed_at: null };
   const granted = await invoke({ config, user: kakao, dbRole: 'admin' });
-  assert.deepEqual(granted.body, { isAdmin: true, isMaster: false });
+  assert.deepEqual(granted.roles, { isAdmin: true, isMaster: false });
   assert.deepEqual(granted.syncs, [
     ['admin_sync_role', { target_user: 'kakao-account', is_master: false }],
   ]);
-  assert.deepEqual((await invoke({ config, user: kakao })).body, {
+  assert.deepEqual((await invoke({ config, user: kakao })).roles, {
     isAdmin: false,
     isMaster: false,
   });
 
   // A database failure never removes a master or grants anyone else.
-  assert.deepEqual((await invoke({ config, dbError: true })).body, {
+  assert.deepEqual((await invoke({ config, dbError: true })).roles, {
     isAdmin: true,
     isMaster: true,
   });
-  assert.deepEqual((await invoke({ config, user: kakao, dbError: true, dbRole: 'admin' })).body, {
+  assert.deepEqual((await invoke({ config, user: kakao, dbError: true, dbRole: 'admin' })).roles, {
     isAdmin: false,
     isMaster: false,
   });
+});
+
+test('diagnostics explain a refusal using only the caller account', async () => {
+  const noSecret = await invoke();
+  assert.deepEqual(noSecret.body.check, {
+    email: 'admin@example.com',
+    emailVerified: true,
+    listed: true,
+    listConfigured: true,
+    sync: 'no_secret',
+  });
+  const config = { ...env, SUPABASE_SECRET_KEY: 'secret-key' };
+  assert.equal((await invoke({ config })).body.check.sync, 'ok');
+  assert.equal((await invoke({ config, dbError: true })).body.check.sync, 'failed');
+  const stranger = await invoke({ user: { ...verified, email: 'stranger@example.com' } });
+  assert.equal(stranger.body.check.listed, false);
+  assert.doesNotMatch(JSON.stringify(stranger.body), /owner@example\.com/);
+  assert.equal(
+    (await invoke({ config: { ...env, ADMIN_EMAILS: '' } })).body.check.listConfigured,
+    false,
+  );
+});
+
+test('ADMIN_USER_IDS makes an email-less account a master by its verified id only', async () => {
+  const kakao = { id: 'Kakao-Account', email: '', email_confirmed_at: null };
+  const config = { ...env, ADMIN_USER_IDS: ' kakao-account , other ' };
+  const listed = await invoke({ config, user: kakao });
+  assert.deepEqual(listed.roles, { isAdmin: true, isMaster: true });
+  assert.equal(listed.body.check.listed, true);
+  // A forged id in the request is ignored; only the token's user counts.
+  const stranger = await invoke({
+    config,
+    user: { ...kakao, id: 'someone-else' },
+    request: { query: { id: 'kakao-account' } },
+  });
+  assert.deepEqual(stranger.roles, { isAdmin: false, isMaster: false });
 });

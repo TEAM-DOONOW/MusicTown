@@ -4,6 +4,7 @@ import { signIn, supabase } from '../../../services/auth';
 import {
   AdminError,
   demoMode,
+  explainCheck,
   rpc,
   syncAdminRole,
   type Whoami,
@@ -13,7 +14,7 @@ import './admin-gate.css';
 type State =
   | { kind: 'loading' }
   | { kind: 'signedOut' }
-  | { kind: 'denied'; userId: string }
+  | { kind: 'denied'; userId: string; reasons: string[] }
   | { kind: 'error'; message: string }
   | { kind: 'ok' };
 
@@ -27,9 +28,13 @@ export function AdminGate({ children }: { children: ReactNode }) {
     const check = async (signedIn: boolean) => {
       if (!signedIn) return setState({ kind: 'signedOut' });
       try {
-        await syncAdminRole();
+        const check = await syncAdminRole();
         const me = await rpc<Whoami>('admin_whoami');
-        setState(me.admin ? { kind: 'ok' } : { kind: 'denied', userId: me.userId });
+        setState(
+          me.admin
+            ? { kind: 'ok' }
+            : { kind: 'denied', userId: me.userId, reasons: explainCheck(check) },
+        );
       } catch (e) {
         setState({
           kind: 'error',
@@ -93,6 +98,13 @@ export function AdminGate({ children }: { children: ReactNode }) {
               이 계정에는 관리자 권한이 없어요. 마스터 관리자에게 회원 관리에서 관리자로 지정해
               달라고 요청해 주세요.
             </p>
+            {state.reasons.length > 0 && (
+              <ul className="a-gate-reasons">
+                {state.reasons.map((r) => (
+                  <li key={r}>{r}</li>
+                ))}
+              </ul>
+            )}
             <code className="a-gate-id">{state.userId}</code>
             <div className="a-gate-actions">
               <button
