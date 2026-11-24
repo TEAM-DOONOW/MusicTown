@@ -1784,6 +1784,7 @@ export function createParkScene({
         .filter(({ group }) => group.userData.seated)
         .map(({ group }) => group.position),
     ];
+    office.setOccupied(benchOccupants);
     benchOcclusions.forEach((bench) => bench.update(benchOccupants, camera.position));
     renderer.render(scene, camera);
     if (entranceReady && arrival === 1 && !readyReported) {
