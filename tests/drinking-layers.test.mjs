@@ -88,3 +88,21 @@ test('bare drinking arm stays opaque along shoulder, elbow and palm throughout t
     globalThis.document = oldDocument;
   }
 });
+
+test('the hand is drawn once: nothing is left at the resting fist when the cup is raised', () => {
+  const oldDocument = globalThis.document;
+  globalThis.document = { createElement: () => createCanvas(1, 1) };
+  try {
+    const { composeAvatar, drawDrinkingPose } = mod.exports;
+    const avatar = { instrument: 'none' };
+    const full = composeAvatar(layers, avatar, 0);
+    const body = composeAvatar(layers, avatar, 0, 'body');
+    const hair = composeAvatar(layers, avatar, 0, 'hair');
+    const pose = createCanvas(512, 512);
+    drawDrinkingPose(pose.getContext('2d'), full, 1, 'americano', undefined, body, hair);
+    const pixels = pose.getContext('2d').getImageData(318, 366, 24, 24).data;
+    for (let i = 3; i < pixels.length; i += 4) assert.equal(pixels[i], 0);
+  } finally {
+    globalThis.document = oldDocument;
+  }
+});
