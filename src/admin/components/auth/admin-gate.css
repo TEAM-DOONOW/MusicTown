@@ -40,3 +40,12 @@
     monospace;
   word-break: break-all;
 }
+
+.a-gate-reasons {
+  margin: 0 0 14px;
+  padding-left: 18px;
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--a-warn, #f5b14c);
+}

@@ -29,21 +29,44 @@ export function createAdminRoleHandler(env = process.env, makeClient = createCli
           .map((email) => email.trim().toLowerCase())
           .filter(Boolean),
       );
+      // Accounts without an email (e.g. Kakao without the email consent item) are listed by their
+      // Supabase user id instead. The id comes from the verified token, never from the request.
+      const adminIds = new Set(
+        clean(env.ADMIN_USER_IDS)
+          .split(',')
+          .map((id) => id.trim().toLowerCase())
+          .filter(Boolean),
+      );
       // Only Supabase's verified account email is authoritative, never request fields or metadata.
       const email = clean(data.user.email).toLowerCase();
-      const isMaster = Boolean(data.user.email_confirmed_at && email && admins.has(email));
+      const idListed = adminIds.has(String(data.user.id).toLowerCase());
+      const isMaster =
+        idListed || Boolean(data.user.email_confirmed_at && email && admins.has(email));
       // ADMIN_EMAILS holds the master admins. Mirror them into the database so console functions can
       // check them, and read back any regular admin role a master granted. Without the secret key
       // (or before the console migration) only masters are recognised.
       let role = isMaster ? 'master' : null;
+      let sync = secret ? 'failed' : 'no_secret';
       if (secret) {
         const synced = await makeClient(url, secret, options).rpc('admin_sync_role', {
           target_user: data.user.id,
           is_master: isMaster,
         });
-        if (!synced.error) role = isMaster ? 'master' : synced.data === 'admin' ? 'admin' : null;
+        if (!synced.error) {
+          sync = 'ok';
+          role = isMaster ? 'master' : synced.data === 'admin' ? 'admin' : null;
+        }
       }
-      return res.status(200).json({ isAdmin: role !== null, isMaster });
+      // Diagnostics about the caller's own account only, so a refused admin can see why without
+      // dashboard access. Never reveals the ADMIN_EMAILS list itself.
+      const check = {
+        email: email || null,
+        emailVerified: Boolean(data.user.email_confirmed_at),
+        listed: idListed || Boolean(email && admins.has(email)),
+        listConfigured: admins.size + adminIds.size > 0,
+        sync,
+      };
+      return res.status(200).json({ isAdmin: role !== null, isMaster, check });
     } catch {
       return fail(502, '권한을 확인하지 못했어요. 잠시 후 다시 시도해 주세요.');
     }
