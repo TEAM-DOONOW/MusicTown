@@ -14,6 +14,7 @@ import {
   isAtBarDoorway,
   BAR_HOST,
   BAR_SEATS,
+  BAR_SEAT_HEIGHT,
   BAR_COUNTER_SEATS,
   BAR_LOUNGE_SEATS,
   BAR_ENTRANCE,
@@ -1114,7 +1115,7 @@ export function createParkScene({
         visitor.group.userData.seatHeight = officeSeat
           ? OFFICE_SEAT_HEIGHT
           : BAR_SEATS.some((seat) => destination.distanceTo(seat) < 0.1)
-            ? 1.03
+            ? BAR_SEAT_HEIGHT
             : 0.68;
         visitor.group.rotation.y =
           officeSeat || BAR_COUNTER_SEATS.some((seat) => destination.distanceTo(seat) < 0.1)
@@ -1444,7 +1445,7 @@ export function createParkScene({
       seatedBench && OFFICE_SEATS.includes(seatedBench)
         ? OFFICE_SEAT_HEIGHT
         : seatedBench && BAR_SEATS.includes(seatedBench)
-          ? 1.03
+          ? BAR_SEAT_HEIGHT
           : 0.68;
     player.position.copy(world(p.position.current));
     player.position.y = surfaceHeight(player.position);

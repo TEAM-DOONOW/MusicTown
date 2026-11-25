@@ -12,6 +12,10 @@ export const BAR_LOUNGE_SEATS = [28.4, 35.6].flatMap((x) =>
 );
 export const BAR_TABLES = [27.1, 36.9].map((x) => new T.Vector3(x, 0, -4.3));
 export const BAR_SEATS = [...BAR_COUNTER_SEATS, ...BAR_LOUNGE_SEATS];
+// Hip anchor of a seated player billboard. The stool top is at 1.015; the anchor sits 0.12 above
+// the thigh's underside in the seated sprite, so this rests the thighs on the cushion instead of
+// sinking them into it.
+export const BAR_SEAT_HEIGHT = 1.14;
 export function isInsideBar(point: { x: number; z: number }) {
   return Math.abs(point.x - BAR_SPOT.x) < 5.8 && Math.abs(point.z - BAR_SPOT.z) < 4.8;
 }
