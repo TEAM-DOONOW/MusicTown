@@ -1,3 +1,4 @@
+import { playerScreen } from './playerScreen';
 import { overlapsBench, blocksBenchStep, type BenchFootprint } from './benchCollision';
 import { createBenchOcclusion } from './benchOcclusion';
 import { createFootsteps } from '../../audio/footsteps';
@@ -859,6 +860,7 @@ export function createParkScene({
         console.error('Character asset could not be activated; retaining prototype model.', error),
       );
   }
+  const playerAnchor = new T.Vector3();
   const keys = new Set<string>();
   const movementKey = (e: KeyboardEvent) =>
     /^Key[WASD]$/.test(e.code) ? e.code.slice(3).toLowerCase() : e.key;
@@ -1733,6 +1735,9 @@ export function createParkScene({
         if (progress >= 1) barSipStarted = null;
       }
     }
+    playerAnchor.copy(player.position).project(camera);
+    playerScreen.x = (playerAnchor.x * 0.5 + 0.5) * el.clientWidth;
+    playerScreen.y = (-playerAnchor.y * 0.5 + 0.5) * el.clientHeight;
     const react = p.reaction,
       bubble = document.getElementById('player-reaction');
     if (bubble && react) {
@@ -1794,6 +1799,7 @@ export function createParkScene({
   }
   frame = requestAnimationFrame(animate);
   return () => {
+    playerScreen.x = playerScreen.y = Number.NaN;
     if (latest.current.fountainPosition) latest.current.fountainPosition.current = null;
     latest.current.mapPositions?.current.clear();
     stopCoffeeSound();
