@@ -1,3 +1,4 @@
+import { playerScreen } from './playerScreen';
 import { overlapsBench, blocksBenchStep, type BenchFootprint } from './benchCollision';
 import { createBenchOcclusion } from './benchOcclusion';
 import { createFootsteps } from '../../audio/footsteps';
@@ -14,6 +15,7 @@ import {
   isAtBarDoorway,
   BAR_HOST,
   BAR_SEATS,
+  BAR_SEAT_HEIGHT,
   BAR_COUNTER_SEATS,
   BAR_LOUNGE_SEATS,
   BAR_ENTRANCE,
@@ -858,6 +860,7 @@ export function createParkScene({
         console.error('Character asset could not be activated; retaining prototype model.', error),
       );
   }
+  const playerAnchor = new T.Vector3();
   const keys = new Set<string>();
   const movementKey = (e: KeyboardEvent) =>
     /^Key[WASD]$/.test(e.code) ? e.code.slice(3).toLowerCase() : e.key;
@@ -1114,7 +1117,7 @@ export function createParkScene({
         visitor.group.userData.seatHeight = officeSeat
           ? OFFICE_SEAT_HEIGHT
           : BAR_SEATS.some((seat) => destination.distanceTo(seat) < 0.1)
-            ? 1.03
+            ? BAR_SEAT_HEIGHT
             : 0.68;
         visitor.group.rotation.y =
           officeSeat || BAR_COUNTER_SEATS.some((seat) => destination.distanceTo(seat) < 0.1)
@@ -1444,7 +1447,7 @@ export function createParkScene({
       seatedBench && OFFICE_SEATS.includes(seatedBench)
         ? OFFICE_SEAT_HEIGHT
         : seatedBench && BAR_SEATS.includes(seatedBench)
-          ? 1.03
+          ? BAR_SEAT_HEIGHT
           : 0.68;
     player.position.copy(world(p.position.current));
     player.position.y = surfaceHeight(player.position);
@@ -1732,6 +1735,9 @@ export function createParkScene({
         if (progress >= 1) barSipStarted = null;
       }
     }
+    playerAnchor.copy(player.position).project(camera);
+    playerScreen.x = (playerAnchor.x * 0.5 + 0.5) * el.clientWidth;
+    playerScreen.y = (-playerAnchor.y * 0.5 + 0.5) * el.clientHeight;
     const react = p.reaction,
       bubble = document.getElementById('player-reaction');
     if (bubble && react) {
@@ -1793,6 +1799,7 @@ export function createParkScene({
   }
   frame = requestAnimationFrame(animate);
   return () => {
+    playerScreen.x = playerScreen.y = Number.NaN;
     if (latest.current.fountainPosition) latest.current.fountainPosition.current = null;
     latest.current.mapPositions?.current.clear();
     stopCoffeeSound();

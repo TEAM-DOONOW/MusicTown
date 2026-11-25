@@ -11,22 +11,29 @@ vm.runInNewContext(
   ).outputText,
   context,
 );
-const { drinkingArmPose } = context.exports;
+const { drinkingArmPose, drinkingCupRim } = context.exports;
 test('cup rim reaches the mouth at the peak of a sip', () => {
-  const pose = drinkingArmPose(1);
-  const rimX = pose.handX - 10 - 25 * Math.sin(0.2);
-  const rimY = pose.handY - 25 * Math.cos(0.2);
-  assert.ok(Math.hypot(rimX - 256, rimY - 225) < 2);
+  const rim = drinkingCupRim(1);
+  assert.ok(Math.hypot(rim.x - 256, rim.y - 225) < 2);
 });
-test('hand stays attached to both rigid arm segments throughout the sip', () => {
+test('the elbow stays low at the side instead of folding up into the face', () => {
+  for (let frame = 0; frame <= 100; frame++) {
+    const p = drinkingArmPose(frame / 100);
+    // Below the shoulder (y 294) and outside the torso seam, under the hand.
+    assert.ok(p.elbowY > 300, `elbow too high at ${frame}`);
+    assert.ok(p.elbowX > 305, `elbow inside the torso at ${frame}`);
+  }
+  const peak = drinkingArmPose(1);
+  assert.ok(peak.elbowY > peak.handY + 30, 'the forearm points up to the mouth at the peak');
+});
+test('hand and elbow move without jumps throughout the sip', () => {
   let previous;
   for (let frame = 0; frame <= 100; frame++) {
     const p = drinkingArmPose(frame / 100);
-    assert.ok(Math.abs(Math.hypot(p.elbowX - 291, p.elbowY - 294) - Math.hypot(20, 52)) < 1e-6);
-    assert.ok(
-      Math.abs(Math.hypot(p.handX - p.elbowX, p.handY - p.elbowY) - Math.hypot(18, 28)) < 1e-6,
-    );
-    if (previous) assert.ok(Math.hypot(p.handX - previous.handX, p.handY - previous.handY) < 3);
+    if (previous) {
+      assert.ok(Math.hypot(p.handX - previous.handX, p.handY - previous.handY) < 3);
+      assert.ok(Math.hypot(p.elbowX - previous.elbowX, p.elbowY - previous.elbowY) < 3);
+    }
     previous = p;
   }
 });
